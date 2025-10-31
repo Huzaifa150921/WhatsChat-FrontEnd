@@ -12,8 +12,8 @@ export default function Signup() {
     const [confirmPasswordValidator, setConfirmPasswordValidator] = useState("")
     const [error, setError] = useState("")
     const [loading, setLoading] = useState(false)
-    const { socket } = useSocket();
 
+    const { socket, connectSocket } = useSocket()
     const router = useRouter()
 
     const disableCondition =
@@ -24,24 +24,37 @@ export default function Signup() {
         password.trim() === "" ||
         confirmPassword.trim() === ""
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setError("")
         setLoading(true)
 
-        socket?.emit(
-            "signup",
-            { username, password, confirmPassword },
-            (response: any) => {
-                if (response.error) {
+        try {
+            // Ensure socket is connected
+            if (!socket || !socket.connected) {
+                await connectSocket()
+            }
+
+            const activeSocket = socket ?? (window as any).__socket
+            if (!activeSocket) {
+                setError("Unable to connect to server. Try again.")
+                setLoading(false)
+                return
+            }
+
+            activeSocket.emit("signup", { username, password, confirmPassword }, (response: any) => {
+                if (response?.error) {
                     setError(response.error)
                     setLoading(false)
                     return
                 }
                 setLoading(false)
                 router.push("/login")
-            }
-        )
+            })
+        } catch (err) {
+            setError("Something went wrong. Please try again.")
+            setLoading(false)
+        }
     }
 
     const handleUsername = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -125,9 +138,7 @@ export default function Signup() {
                     </div>
 
                     <div>
-                        <label className="block mb-2 text-sm text-signup-labelText">
-                            Confirm Password
-                        </label>
+                        <label className="block mb-2 text-sm text-signup-labelText">Confirm Password</label>
                         <input
                             type="password"
                             value={confirmPassword}

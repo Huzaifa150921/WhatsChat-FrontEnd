@@ -23,11 +23,20 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     const [connected, setConnected] = useState(false)
 
     const connectSocket = async () => {
+        const token = localStorage.getItem("token")
+        if (!token) return
         if (socket && socket.connected) return
+
         const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL as string
-        const s = io(serverUrl, { transports: ["websocket"], reconnection: true })
+        const s = io(serverUrl, {
+            transports: ["websocket"],
+            reconnection: true,
+            auth: { token }, // attach token to authenticate
+        })
+
         setSocket(s)
             ; (window as any).__socket = s
+
         s.on("connect", () => setConnected(true))
         s.on("disconnect", () => setConnected(false))
     }
@@ -41,7 +50,11 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         }
     }
 
-    useEffect(() => () => disconnectSocket(), [])
+    useEffect(() => {
+        const token = localStorage.getItem("token")
+        if (token) connectSocket()
+        return () => disconnectSocket()
+    }, [])
 
     return (
         <SocketContext.Provider value={{ socket, connected, connectSocket, disconnectSocket }}>
