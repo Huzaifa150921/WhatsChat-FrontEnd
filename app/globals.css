@@ -1,42 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+    /* dashboard  */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+    --dashboard-loading-text-color: black;
+    --dashboard-bg-color: #111B21;
+    --dashboard-text-color: white;
+    --dashboard-sidebar-bg-color: #1F2C34;
+    --dashboard-sidebar-border-color: #233138;
+    --dashboard-titlesection-border-color: #233138;
+    --dashboard-titlesection-button-color: rgb(245, 30, 30);
+    --dashboard-titlesection-button-color-hover: rgb(233, 49, 49);
+    --dashboard-search-input-bg-color: #2A3942;
+    --dashboard-search-placeholder-color: rgb(187, 185, 185);
+    --dashboard-search-focus-bg-color: #3C4A53;
+    --dasboard-users-bg-color: #2A3942;
+    --dashboard-users-bg-color-hover: #2A3942;
+    --dashboard-user-tagline-text-color: rgb(182, 182, 182);
+    --dashboard-selected-user-bg-color: #0B141A;
+    --dashboard-selected-user-border-color: #233138;
+    --dashboard-sender-bg-color: #005C4B;
+    --dashboard-reciver-bg-color: #202C33;
+    --dashboard-msg-input-border-color: #233138;
+    --dashboard-msg-bg-color: #2A3942;
+    --dashboard-msg-placeholder-color: rgb(172, 172, 172);
+    --dashboard-msg-focus-color: #3C4A53;
+    --dashboard-send-button-bg-color: #00A884;
+    --dashboard-send-button-text-color: black;
+    --dashboard-send-button-bg-hover: #06cf9c;
+    --dashboard-welcome-text-color: rgb(182, 182, 182);
+    --dashboard-welcome-heading-text-color: white;
+    --dashboard-welcome-body-text-color: rgb(175, 175, 175);
 
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
-}
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+    /* login  */
+    --login-bg-color: #111B21;
+    --login-text-color: white;
+    --login-form-bg-color: #1F2C34;
+    --login-form-border-color: #233138;
+    --login-error-text-color: white;
+    --login-error-bg-color: rgb(245, 46, 46);
+    --login-error-button-text-color: white;
+    --login-error-button-text-color-hover: rgb(190, 190, 190);
+    --login-label-text-color: rgb(180, 180, 180);
+    --login-input-bg-color: #2A3942;
+    --login-input-focus-color: #3C4A53;
+    --login-input-text-color: white;
+    --login-input-placeholder-color: rgb(175, 175, 175);
+    --login-button-bg-color-disabled: rgb(134, 134, 134);
+    --login-button-text-color-disabled: rgb(180, 180, 180);
+    --login-button-bg-color: #00A884;
+    --login-button-bg-hover: #06cf9c;
+    --login-button-text-color: black;
+    --login-body-text-color: rgb(184, 184, 184);
+    --login-body-link-text-color: #00A884;
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
-}
 
-a {
-  color: inherit;
-  text-decoration: none;
-}
+    /* sign up  */
+    --signup-bg-color: #111B21;
+    --signup-text-color: white;
+    --signup-error-bg-color: rgb(245, 46, 46);
+    --signup-error-text-color: white;
+    --signup-error-button-text-color: white;
+    --signup-error-button-text-color-hover: rgb(190, 190, 190);
+    --signup-form-bg-color: #1F2C34;
+    --signup-form-border-color: #233138;
+    --signup-label-text-color: rgb(180, 180, 180);
+    --signup-input-bg-color: #2A3942;
+    --signup-input-focus-color: #3C4A53;
+    --signup-input-text-color: white;
+    --signup-input-placeholder-color: rgb(175, 175, 175);
+    --signup-input-error-text-color: rgb(247, 22, 22);
+    --signup-button-bg-color-disabled: rgb(134, 134, 134);
+    --signup-button-text-color-disabled: rgb(180, 180, 180);
+    --signup-button-bg-color: #00A884;
+    --signup-button-bg-hover: #06cf9c;
+    --signup-button-text-color: black;
+    --signup-body-text-color: rgb(184, 184, 184);
+    --signup-body-link-text-color: #00A884;
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
 }
