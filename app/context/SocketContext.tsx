@@ -5,14 +5,14 @@ import { io, Socket } from "socket.io-client"
 type SocketContextType = {
     socket: Socket | null
     connected: boolean
-    connectSocket: () => Promise<void>
+    connectSocket: (token?: string) => Promise<Socket>
     disconnectSocket: () => void
 }
 
 const SocketContext = createContext<SocketContextType>({
     socket: null,
     connected: false,
-    connectSocket: async () => { },
+    connectSocket: async () => { throw new Error("Socket not ready") },
     disconnectSocket: () => { },
 })
 
@@ -22,23 +22,26 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     const [socket, setSocket] = useState<Socket | null>(null)
     const [connected, setConnected] = useState(false)
 
-    const connectSocket = async () => {
-        const token = localStorage.getItem("token")
-        if (!token) return
-        if (socket && socket.connected) return
+    const connectSocket = async (token?: string): Promise<Socket> => {
+        return new Promise((resolve, reject) => {
+            if (socket && socket.connected) return resolve(socket)
 
-        const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL as string
-        const s = io(serverUrl, {
-            transports: ["websocket"],
-            reconnection: true,
-            auth: { token }, // attach token to authenticate
+            const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL as string
+            const s = io(serverUrl, {
+                transports: ["websocket"],
+                reconnection: true,
+                auth: token ? { token } : {},
+            })
+            setSocket(s)
+                ; (window as any).__socket = s
+
+            s.once("connect", () => {
+                setConnected(true)
+                resolve(s)
+            })
+            s.once("connect_error", reject)
+            s.on("disconnect", () => setConnected(false))
         })
-
-        setSocket(s)
-            ; (window as any).__socket = s
-
-        s.on("connect", () => setConnected(true))
-        s.on("disconnect", () => setConnected(false))
     }
 
     const disconnectSocket = () => {
@@ -52,7 +55,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
     useEffect(() => {
         const token = localStorage.getItem("token")
-        if (token) connectSocket()
+        if (token) connectSocket(token)
         return () => disconnectSocket()
     }, [])
 
