@@ -3,7 +3,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import Image from "@/public/images/default_pic.jpg"
 import { useSocket } from "@/app/context/SocketContext"
-
+import ChatLoader from "@/app/components/uielements/loaders/chatloader/ChatLoader"
 type User = {
     id: string
     username: string
@@ -149,8 +149,11 @@ export default function ChatsPage() {
 
     if (loading) {
         return (
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-dashboard-loadingText">
-                Loading...
+            <div className="h-screen w-full bg-dashboard-bg relative">
+
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-dashboard-loadingText">
+                    <ChatLoader />
+                </div>
             </div>
         )
     }
@@ -249,7 +252,7 @@ export default function ChatsPage() {
                                 onClick={sendMessage}
                                 className="bg-dashboard-sendbuttonBg text-dashboard-sendbuttonText px-4 py-2 rounded-lg font-semibold hover:bg-dashboard-sendbuttonbgHover transition"
                             >
-                                Send
+                                Send ➤
                             </button>
                         </div>
                     </>
