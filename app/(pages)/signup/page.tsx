@@ -5,7 +5,9 @@ import { useSocket } from "@/app/context/SocketContext"
 
 export default function Signup() {
     const [username, setUsername] = useState("")
+    const [displayName, setdisplayName] = useState("")
     const [usernameValidator, setUsernameValidator] = useState("")
+    const [nameValidator, setnameValidator] = useState("")
     const [password, setPassword] = useState("")
     const [passwordValidator, setPasswordValidator] = useState("")
     const [confirmPassword, setConfirmPassword] = useState("")
@@ -18,8 +20,10 @@ export default function Signup() {
 
     const disableCondition =
         usernameValidator !== "" ||
+        nameValidator !== "" ||
         passwordValidator !== "" ||
         confirmPasswordValidator !== "" ||
+        displayName.trim() === "" ||
         username.trim() === "" ||
         password.trim() === "" ||
         confirmPassword.trim() === ""
@@ -30,7 +34,7 @@ export default function Signup() {
         setLoading(true)
 
         try {
-            // Ensure socket is connected
+
             if (!socket || !socket.connected) {
                 await connectSocket()
             }
@@ -42,7 +46,7 @@ export default function Signup() {
                 return
             }
 
-            activeSocket.emit("signup", { username, password, confirmPassword }, (response: any) => {
+            activeSocket.emit("signup", { displayName, username, password, confirmPassword }, (response: any) => {
                 if (response?.error) {
                     setError(response.error)
                     setLoading(false)
@@ -61,6 +65,12 @@ export default function Signup() {
         const input = e.target.value
         setUsername(input)
         setUsernameValidator(input.trim().length === 0 ? "Username can't be empty" : "")
+    }
+
+    const handlename = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const input = e.target.value
+        setdisplayName(input)
+        setnameValidator(input.trim().length === 0 ? "Name can't be empty" : "")
     }
 
     const handlePassword = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -116,6 +126,23 @@ export default function Signup() {
                         {usernameValidator && (
                             <p className="text-signup-inputerrorText text-left text-sm p-1">
                                 {usernameValidator}
+                            </p>
+                        )}
+                    </div>
+
+                    <div>
+                        <label className="block mb-2 text-sm text-signup-labelText">Name</label>
+                        <input
+                            type="text"
+                            value={displayName}
+                            onChange={handlename}
+                            placeholder="Enter your nickname"
+                            required
+                            className="w-full px-4 py-2 rounded-lg bg-signup-inputBg focus:bg-signup-inputFocus text-signup-inputText placeholder-signup-inputPlaceholder focus:outline-none"
+                        />
+                        {nameValidator && (
+                            <p className="text-signup-inputerrorText text-left text-sm p-1">
+                                {nameValidator}
                             </p>
                         )}
                     </div>

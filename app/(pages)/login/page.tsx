@@ -42,7 +42,7 @@ export default function Login() {
                 localStorage.setItem("username", response.user.username)
 
                 disconnectSocket()
-                await connectSocket(token) // reconnect authenticated socket
+                await connectSocket(token)
 
                 setLoading(false)
                 router.push("/chats")

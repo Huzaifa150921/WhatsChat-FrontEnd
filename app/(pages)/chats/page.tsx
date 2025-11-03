@@ -1,51 +1,57 @@
 "use client"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import Image from '@/public/images/default_pic.jpg'
-import { useSocket } from '@/app/context/SocketContext'
+import Image from "@/public/images/default_pic.jpg"
+import { useSocket } from "@/app/context/SocketContext"
+
 type User = {
-    id: number;
+    id: string
     username: string
+    displayName: string
 }
 
 type Message = {
-    from: string;
-    to: string;
+    from: string
+    to: string
     text: string
+    createdAt?: string
+    direction?: "inbound" | "outbound"
 }
 
-export default function chatsPage() {
+type Thread = {
+    user: string
+    messages: Message[]
+}
+
+export default function ChatsPage() {
     const [search, setSearch] = useState("")
     const [selectedUser, setSelectedUser] = useState<string | null>(null)
     const [username, setUsername] = useState<string | null>(null)
     const [users, setUsers] = useState<User[]>([])
+    const [searchResults, setSearchResults] = useState<User[]>([])
     const [loading, setLoading] = useState(true)
     const [message, setMessage] = useState("")
-    const [messages, setMessages] = useState<Record<string, Message[]>>({})
-
+    const [threads, setThreads] = useState<Thread[]>([])
+    const [currentUser, setCurrentUser] = useState<User | null>(null)
     const { socket, disconnectSocket } = useSocket()
     const router = useRouter()
-
 
     useEffect(() => {
         const token = localStorage.getItem("token")
         const currentUsername = localStorage.getItem("username")
-
         if (!token || !currentUsername) {
             router.push("/login")
             return
         }
-
         setUsername(currentUsername)
-
         const activeSocket = socket ?? (window as any).__socket
         if (!activeSocket) return
 
         const authenticateUser = () => {
             activeSocket.emit("authenticate", { token }, (res: any) => {
-                if (res.error) {
-                    router.push("/login")
-                } else {
+                if (res.error) router.push("/login")
+                else {
+                    setCurrentUser(res.user)
                     activeSocket.emit("get_users", (resp: any) => {
                         if (resp.success) setUsers(resp.users)
                         setLoading(false)
@@ -54,18 +60,27 @@ export default function chatsPage() {
             })
         }
 
-        if (activeSocket.connected) {
-            authenticateUser()
-        } else {
-            activeSocket.once("connect", authenticateUser)
-        }
+        if (activeSocket.connected) authenticateUser()
+        else activeSocket.once("connect", authenticateUser)
 
         activeSocket.on("receive_message", (data: Message) => {
-            const chatUser = data.from === currentUsername ? data.to : data.from
-            setMessages(prev => ({
-                ...prev,
-                [chatUser]: [...(prev[chatUser] || []), data]
-            }))
+            const partner = data.from === currentUsername ? data.to : data.from
+            setThreads(prev => {
+                const idx = prev.findIndex(t => t.user === partner)
+                const shaped: Message = {
+                    ...data,
+                    direction: data.from === currentUsername ? "outbound" : "inbound",
+                }
+                if (idx === -1) return [{ user: partner, messages: [shaped] }, ...prev]
+                const copy = [...prev]
+                copy[idx] = { user: partner, messages: [...copy[idx].messages, shaped] }
+                return copy
+            })
+            if (!users.find(u => u.username === partner)) {
+                activeSocket.emit("get_users", (resp: any) => {
+                    if (resp.success) setUsers(resp.users)
+                })
+            }
         })
 
         return () => {
@@ -74,26 +89,63 @@ export default function chatsPage() {
         }
     }, [socket])
 
+    useEffect(() => {
+        if (!socket || !selectedUser) return
+        socket.emit("get_messages", { username: selectedUser }, (res: any) => {
+            if (res.success) {
+                setThreads(prev => {
+                    const idx = prev.findIndex(t => t.user === selectedUser)
+                    const newThread = {
+                        user: selectedUser,
+                        messages: res.messages.map((m: any) => ({
+                            ...m,
+                            direction: m.from === username ? "outbound" : "inbound",
+                        })),
+                    }
+                    if (idx === -1) return [newThread, ...prev]
+                    const copy = [...prev]
+                    copy[idx] = newThread
+                    return copy
+                })
+            }
+        })
+    }, [selectedUser, socket])
 
-
-
+    useEffect(() => {
+        if (!socket || !search.trim()) {
+            setSearchResults([])
+            return
+        }
+        const timer = setTimeout(() => {
+            socket.emit("search_users", search.trim(), (resp: any) => {
+                if (resp.success) setSearchResults(resp.users)
+            })
+        }, 300)
+        return () => clearTimeout(timer)
+    }, [search, socket])
 
     const handleLogout = () => {
-        disconnectSocket();
-        localStorage.clear();
-        router.push("/login");
+        disconnectSocket()
+        localStorage.clear()
+        router.push("/login")
     }
 
-    const handleMessage = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setMessage(e.target.value)
-    }
+    const handleMessage = (e: React.ChangeEvent<HTMLInputElement>) => setMessage(e.target.value)
 
     const sendMessage = () => {
-        if (!message || !selectedUser || !socket || !username) return
-        const msg: Message = { from: username, to: selectedUser, text: message }
-        socket.emit("send_message", msg)
-        setMessage("")
+        if (!message || !selectedUser || !socket) return
+        socket.emit("send_message", { to: selectedUser, text: message }, (ack: any) => {
+            if (ack && ack.success) setMessage("")
+        })
     }
+
+
+    const getMessagesFor = (user: string) => {
+        const t = threads.find(tt => tt.user === user)
+        return t ? t.messages : []
+    }
+
+    const visibleUsers = search ? searchResults : users
 
     if (loading) {
         return (
@@ -105,7 +157,10 @@ export default function chatsPage() {
 
     return (
         <div className="h-screen flex bg-dashboard-bg text-dashboard-text">
-            <div className={`${selectedUser ? "hidden sm:flex" : "flex"} w-full sm:w-1/3 md:w-1/4 border-r border-dashboard-sidebarBorder bg-dashboard-sidebarBg flex-col`}>
+            <div
+                className={`${selectedUser ? "hidden sm:flex" : "flex"
+                    } w-full sm:w-1/3 md:w-1/4 border-r border-dashboard-sidebarBorder bg-dashboard-sidebarBg flex-col`}
+            >
                 <div className="flex items-center justify-between p-4 border-b border-dashboard-titlesectionBorder">
                     <h2 className="text-lg font-semibold">WhatsChat</h2>
                     <button
@@ -118,50 +173,62 @@ export default function chatsPage() {
 
                 <div className="p-3">
                     <input
-                        type="text"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Search or start new chat"
+                        type="text"
+                        placeholder="Search username"
                         className="w-full px-4 py-2 rounded-lg bg-dashboard-searchinputBg placeholder-dashboard-searchinputPlaceholder focus:outline-none focus:bg-dashboard-searchinputFocus"
                     />
                 </div>
 
                 <div className="flex-1 overflow-y-auto">
-                    {users
-                        .map((user) => (
-                            <div
-                                key={user.id}
-                                onClick={() => setSelectedUser(user.username)}
-                                className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-dashboard-userbgHover ${selectedUser === user.username ? "bg-dashboard-userBg" : ""}`}
-                            >
-                                <img src={Image.src} alt={user.username} className="w-10 h-10 rounded-full" />
-                                <div>
-                                    <div className="font-medium">{user.username}</div>
-                                    <div className="text-sm text-dashboard-userTagline">Tap to chat</div>
-                                </div>
+                    {visibleUsers.map((user) => (
+                        <div
+                            key={user.id}
+                            onClick={() => setSelectedUser(user.username)}
+                            className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-dashboard-userbgHover ${selectedUser === user.username ? "bg-dashboard-userBg" : ""
+                                }`}
+                        >
+                            <img src={Image.src} alt={user.displayName} className="w-10 h-10 rounded-full" />
+                            <div>
+                                <div className="font-medium">{user.displayName}</div>
+                                <div className="text-sm text-dashboard-userTagline">{user.username}</div>
                             </div>
-                        ))}
+                        </div>
+                    ))}
+                    {visibleUsers.length === 0 && (
+                        <p className="text-center text-sm text-dashboard-userTagline mt-6">No users found</p>
+                    )}
                 </div>
             </div>
 
-            <div className={`${selectedUser ? "flex" : "hidden sm:flex"} flex-col flex-1 bg-dashboard-selecteduserBg`}>
+            <div
+                className={`${selectedUser ? "flex" : "hidden sm:flex"
+                    } flex-col flex-1 bg-dashboard-selecteduserBg`}
+            >
                 {selectedUser ? (
                     <>
                         <div className="p-4 border-b border-dashboard-selecteduserBorder flex items-center gap-3">
-                            <button onClick={() => setSelectedUser(null)} className="sm:hidden text-xl">←</button>
+                            <button onClick={() => setSelectedUser(null)} className="sm:hidden text-xl">
+                                ←
+                            </button>
                             <img
                                 src={Image.src}
-                                alt={selectedUser}
+                                alt={users.find(u => u.username === selectedUser)?.displayName || "Guest"}
                                 className="w-10 h-10 rounded-full"
                             />
-                            <h2 className="font-semibold">{selectedUser}</h2>
+                            <h2 className="font-semibold">
+                                {users.find(u => u.username === selectedUser)?.displayName || selectedUser}
+                            </h2>
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                            {(messages[selectedUser] || []).map((msg, i) => (
+                            {getMessagesFor(selectedUser).map((msg, i) => (
                                 <div
                                     key={i}
-                                    className={`max-w-xs md:max-w-sm p-3 rounded-lg ${msg.from === username ? "bg-dashboard-senderBg ml-auto" : "bg-dashboard-reciverBg mr-auto"
+                                    className={`max-w-xs md:max-w-sm p-3 rounded-lg ${msg.direction === "outbound"
+                                        ? "bg-dashboard-senderBg ml-auto"
+                                        : "bg-dashboard-reciverBg mr-auto"
                                         }`}
                                 >
                                     {msg.text}
@@ -178,14 +245,19 @@ export default function chatsPage() {
                                 className="flex-1 px-4 py-2 rounded-lg bg-dashboard-msgBg placeholder-dashboard-msgPlaceholder focus:outline-none focus:bg-dashboard-msgFocus"
                                 onKeyDown={(e) => e.key === "Enter" && sendMessage()}
                             />
-                            <button className="bg-dashboard-sendbuttonBg text-dashboard-sendbuttonText px-4 py-2 rounded-lg font-semibold hover:bg-dashboard-sendbuttonbgHover transition" onClick={sendMessage}>
+                            <button
+                                onClick={sendMessage}
+                                className="bg-dashboard-sendbuttonBg text-dashboard-sendbuttonText px-4 py-2 rounded-lg font-semibold hover:bg-dashboard-sendbuttonbgHover transition"
+                            >
                                 Send
                             </button>
                         </div>
                     </>
                 ) : (
                     <div className="hidden sm:flex flex-col items-center justify-center flex-1 text-dashboard-welcomeText space-y-2">
-                        <h1 className="text-2xl font-semibold text-dashboard-welcomeHeading">Hi, {username} 👋</h1>
+                        <h1 className="text-2xl font-semibold text-dashboard-welcomeHeading">
+                            Hi, {currentUser?.displayName} 👋
+                        </h1>
                         <p className="text-sm text-dashboard-welcomeBody">Select a chat to start messaging 💬</p>
                     </div>
                 )}
