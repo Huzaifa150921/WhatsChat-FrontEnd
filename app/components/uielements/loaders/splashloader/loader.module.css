@@ -151,7 +151,7 @@
 
 @media screen and (max-width: 480px) {
     .loader_wrapper {
-        font-size: 1.4em;
+      
         height: 80px;
         scale: 1;
 
