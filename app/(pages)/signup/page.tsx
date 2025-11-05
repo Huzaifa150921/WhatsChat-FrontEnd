@@ -1,7 +1,9 @@
 "use client"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useSocket } from "@/app/context/SocketContext"
+import Button from "@/app/components/uielements/button/Button"
+import FormNavigator from "@/app/components/uielements/formnavigator/FormNavigator"
+import SignupInput from "@/app/components/uielements/signupinput/SignupInput"
 
 export default function Signup() {
     const [username, setUsername] = useState("")
@@ -14,8 +16,6 @@ export default function Signup() {
     const [confirmPasswordValidator, setConfirmPasswordValidator] = useState("")
     const [error, setError] = useState("")
     const [loading, setLoading] = useState(false)
-
-    const { socket, connectSocket } = useSocket()
     const router = useRouter()
 
     const disableCondition =
@@ -34,29 +34,36 @@ export default function Signup() {
         setLoading(true)
 
         try {
-
-            if (!socket || !socket.connected) {
-                await connectSocket()
-            }
-
-            const activeSocket = socket ?? (window as any).__socket
-            if (!activeSocket) {
-                setError("Unable to connect to server. Try again.")
-                setLoading(false)
-                return
-            }
-
-            activeSocket.emit("signup", { displayName, username, password, confirmPassword }, (response: any) => {
-                if (response?.error) {
-                    setError(response.error)
-                    setLoading(false)
-                    return
+            const res = await fetch(
+                `${process.env.NEXT_PUBLIC_SERVER_URL}/auth/signup`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        displayName,
+                        username,
+                        password,
+                        confirmPassword,
+                    }),
                 }
-                setLoading(false)
-                router.push("/login")
-            })
-        } catch (err) {
-            setError("Something went wrong. Please try again.")
+            )
+            const data = await res.json()
+            if (
+                !res.ok ||
+                data.error
+            )
+                throw new Error(
+                    data.error || "Signup failed"
+                )
+
+            setLoading(false)
+            router.push("/login")
+        } catch (err: any) {
+            setError(
+                err.message || "Something went wrong. Please try again."
+            )
             setLoading(false)
         }
     }
@@ -64,13 +71,21 @@ export default function Signup() {
     const handleUsername = (e: React.ChangeEvent<HTMLInputElement>) => {
         const input = e.target.value
         setUsername(input)
-        setUsernameValidator(input.trim().length === 0 ? "Username can't be empty" : "")
+        setUsernameValidator(
+            input.trim().length === 0
+                ? "Username can't be empty"
+                : ""
+        )
     }
 
     const handlename = (e: React.ChangeEvent<HTMLInputElement>) => {
         const input = e.target.value
         setdisplayName(input)
-        setnameValidator(input.trim().length === 0 ? "Name can't be empty" : "")
+        setnameValidator(
+            input.trim().length === 0
+                ? "Name can't be empty"
+                : ""
+        )
     }
 
     const handlePassword = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -78,7 +93,9 @@ export default function Signup() {
         setPassword(input)
         setConfirmPassword("")
         setPasswordValidator(
-            input.trim().length <= 7 ? "Password must be at least 8 characters" : ""
+            input.trim().length <= 7
+                ? "Password must be at least 8 characters"
+                : ""
         )
     }
 
@@ -88,7 +105,9 @@ export default function Signup() {
         if (input.trim() === "") {
             setConfirmPasswordValidator("")
         } else if (input.trim() !== password) {
-            setConfirmPasswordValidator("Passwords don't match")
+            setConfirmPasswordValidator(
+                "Passwords don't match"
+            )
         } else {
             setConfirmPasswordValidator("")
         }
@@ -98,107 +117,50 @@ export default function Signup() {
         <div className="min-h-screen flex items-center justify-center bg-signup-bg text-signup-text px-4">
             {error && (
                 <div className="absolute top-0 left-0 w-full bg-signup-errorbg text-signup-errorText px-4 py-3 flex justify-between items-center">
-                    <p className="text-sm">{error}</p>
+                    <p className="text-sm">
+                        {error}
+                    </p>
                     <button
-                        onClick={() => setError("")}
+                        onClick={() =>
+                            setError("")
+                        }
                         className="text-signup-errorbuttonText font-bold text-lg leading-none hover:text-signup-errorbuttontextHover"
                     >
                         x
                     </button>
                 </div>
             )}
+
             <div className="w-full max-w-md bg-signup-formBg rounded-2xl shadow-2xl p-8 border border-signup-formBorder relative">
                 <div className="flex justify-center mb-6 mt-4">
-                    <h1 className="text-2xl font-semibold tracking-wide">Signup</h1>
+                    <h1 className="text-2xl font-semibold tracking-wide">
+                        Signup
+                    </h1>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6 mt-4">
-                    <div>
-                        <label className="block mb-2 text-sm text-signup-labelText">Username</label>
-                        <input
-                            type="text"
-                            value={username}
-                            onChange={handleUsername}
-                            placeholder="Enter your username"
-                            required
-                            className="w-full px-4 py-2 rounded-lg bg-signup-inputBg focus:bg-signup-inputFocus text-signup-inputText placeholder-signup-inputPlaceholder focus:outline-none"
-                        />
-                        {usernameValidator && (
-                            <p className="text-signup-inputerrorText text-left text-sm p-1">
-                                {usernameValidator}
-                            </p>
-                        )}
-                    </div>
+                <form
+                    onSubmit={handleSubmit}
+                    className="space-y-6 mt-4"
+                >
 
-                    <div>
-                        <label className="block mb-2 text-sm text-signup-labelText">Name</label>
-                        <input
-                            type="text"
-                            value={displayName}
-                            onChange={handlename}
-                            placeholder="Enter your nickname"
-                            required
-                            className="w-full px-4 py-2 rounded-lg bg-signup-inputBg focus:bg-signup-inputFocus text-signup-inputText placeholder-signup-inputPlaceholder focus:outline-none"
-                        />
-                        {nameValidator && (
-                            <p className="text-signup-inputerrorText text-left text-sm p-1">
-                                {nameValidator}
-                            </p>
-                        )}
-                    </div>
 
-                    <div>
-                        <label className="block mb-2 text-sm text-signup-labelText">Password</label>
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={handlePassword}
-                            placeholder="Enter your password"
-                            required
-                            className="w-full px-4 py-2 rounded-lg bg-signup-inputBg focus:bg-signup-inputFocus text-signup-inputText placeholder-signup-inputPlaceholder focus:outline-none"
-                        />
-                        {passwordValidator && (
-                            <p className="text-signup-inputerrorText text-left text-sm p-1">
-                                {passwordValidator}
-                            </p>
-                        )}
-                    </div>
+                    <SignupInput error={usernameValidator} label="Username" onChange={handleUsername} placeholder="Enter your username" type="text" value={username} />
 
-                    <div>
-                        <label className="block mb-2 text-sm text-signup-labelText">Confirm Password</label>
-                        <input
-                            type="password"
-                            value={confirmPassword}
-                            onChange={handleConfirmPassword}
-                            placeholder="Confirm your password"
-                            required
-                            className="w-full px-4 py-2 rounded-lg bg-signup-inputBg focus:bg-signup-inputFocus text-signup-inputText placeholder-signup-inputPlaceholder focus:outline-none"
-                        />
-                        {confirmPasswordValidator && (
-                            <p className="text-signup-inputerrorText text-left text-sm p-1">
-                                {confirmPasswordValidator}
-                            </p>
-                        )}
-                    </div>
+                    <SignupInput error={nameValidator} label="Name" onChange={handlename} placeholder="Enter your nickname" type="text" value={displayName} />
 
-                    <button
-                        disabled={disableCondition || loading}
-                        type="submit"
-                        className={`w-full py-2 rounded-lg font-semibold text-lg transition duration-200 ${disableCondition || loading
-                            ? "bg-signup-buttondisabledBg cursor-not-allowed text-signup-buttondisabledText"
-                            : "bg-signup-buttonBg hover:bg-signup-buttonbgHover text-signup-buttonText"
-                            }`}
-                    >
-                        {loading ? "Signing up..." : "Sign Up"}
-                    </button>
+                    <SignupInput error={passwordValidator} label="Password" onChange={handlePassword} placeholder="Enter your password" type="password" value={password} />
+
+                    <SignupInput error={confirmPasswordValidator} label="Confirm Password" onChange={handleConfirmPassword} placeholder="Confirm your password" type="password" value={confirmPassword} />
+
+
+                    <Button buttonText="Sign Up" disableCondition={disableCondition ||
+                        loading} loading={loading} loadingText="Signing up..." />
+
                 </form>
 
-                <p className="text-center text-sm text-signup-bodyText mt-6">
-                    Already have an account?{" "}
-                    <a href="/login" className="text-signup-bodyLink hover:underline">
-                        Log in
-                    </a>
-                </p>
+
+                <FormNavigator content="Already have an account?" formType="Log in" pageLink="/login" />
+
             </div>
         </div>
     )

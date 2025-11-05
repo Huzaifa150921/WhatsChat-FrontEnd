@@ -2,6 +2,9 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSocket } from "@/app/context/SocketContext"
+import LoginInput from "@/app/components/uielements/logininput/LoginInput"
+import Button from "@/app/components/uielements/button/Button"
+import FormNavigator from "@/app/components/uielements/formnavigator/FormNavigator"
 
 export default function Login() {
     const [username, setUsername] = useState("")
@@ -9,7 +12,7 @@ export default function Login() {
     const [error, setError] = useState("")
     const [loading, setLoading] = useState(false)
     const router = useRouter()
-    const { connectSocket, disconnectSocket } = useSocket()
+    const { connectSocket } = useSocket()
 
     const disableCondition = username.trim() === "" || password.trim() === ""
 
@@ -19,36 +22,25 @@ export default function Login() {
         setLoading(true)
 
         try {
-            disconnectSocket()
-            const socket = await connectSocket()
-
-            if (!socket.connected) throw new Error("Socket not connected")
-
-            socket.emit("login", { username, password }, async (response: any) => {
-                if (response?.error) {
-                    setError(response.error)
-                    setLoading(false)
-                    return
-                }
-
-                const token = response?.token
-                if (!token) {
-                    setError("Invalid server response")
-                    setLoading(false)
-                    return
-                }
-
-                localStorage.setItem("token", token)
-                localStorage.setItem("username", response.user.username)
-
-                disconnectSocket()
-                await connectSocket(token)
-
-                setLoading(false)
-                router.push("/chats")
+            const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/auth/login`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username, password }),
             })
+
+            const data = await res.json()
+            if (!res.ok || data.error) throw new Error(data.error || "Login failed")
+
+            const { token, user } = data
+            localStorage.setItem("token", token)
+            localStorage.setItem("username", user.username)
+
+            await connectSocket(token)
+
+            router.push("/chats")
         } catch (err: any) {
-            setError(err?.message || "Connection failed")
+            setError(err.message || "Connection failed")
+        } finally {
             setLoading(false)
         }
     }
@@ -58,7 +50,12 @@ export default function Login() {
             {error && (
                 <div className="absolute top-0 left-0 w-full bg-login-errorBg text-login-errorText px-4 py-3 flex justify-between items-center">
                     <p className="text-sm">{error}</p>
-                    <button onClick={() => setError("")} className="text-login-errorbuttonText font-bold text-lg leading-none hover:text-login-errorbuttontextHover">x</button>
+                    <button
+                        onClick={() => setError("")}
+                        className="text-login-errorbuttonText font-bold text-lg leading-none hover:text-login-errorbuttontextHover"
+                    >
+                        x
+                    </button>
                 </div>
             )}
 
@@ -68,25 +65,18 @@ export default function Login() {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6 mt-4">
-                    <div>
-                        <label className="block mb-2 text-sm text-login-labelText">Username</label>
-                        <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Enter your username" required className="w-full px-4 py-2 rounded-lg bg-login-inputbg focus:bg-login-inputFocus text-login-inputText placeholder-login-inputPlaceholder focus:outline-none" />
-                    </div>
+                    <LoginInput label="Username" placeholder="Enter your username" onChange={(e) => setUsername(e.target.value)} type="text" value={username} />
 
-                    <div>
-                        <label className="block mb-2 text-sm text-login-labelText">Password</label>
-                        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" required className="w-full px-4 py-2 rounded-lg bg-login-inputbg focus:bg-login-inputFocus text-login-inputText placeholder-login-inputPlaceholder focus:outline-none" />
-                    </div>
+                    <LoginInput label="Password" placeholder="Enter your password" onChange={(e) => setPassword(e.target.value)} type="password" value={password} />
 
-                    <button disabled={disableCondition || loading} type="submit" className={`w-full py-2 rounded-lg font-semibold text-lg transition duration-200 ${disableCondition || loading ? "bg-login-buttondisabledBg cursor-not-allowed text-login-buttondisabledText" : "bg-login-buttonBg hover:bg-login-buttonbgHover text-login-buttonText"}`}>
-                        {loading ? "Logging in..." : "Log In"}
-                    </button>
+                    <Button buttonText="Log In" loadingText="Logging in..." disableCondition={disableCondition || loading} loading={loading} />
+
+
                 </form>
 
-                <p className="text-center text-sm text-login-bodyText mt-6">
-                    Don't have an account?{" "}
-                    <a href="/signup" className="text-login-bodytextLink hover:underline">Sign up</a>
-                </p>
+
+                <FormNavigator content="Don't have an account?" pageLink="/signup" formType="Sign up" />
+
             </div>
         </div>
     )
