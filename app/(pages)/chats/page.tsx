@@ -1,6 +1,7 @@
 "use client"
 import { useRouter } from "next/navigation"
 import { useEffect, useState, useRef } from "react"
+import toast from "react-hot-toast"
 import Image from "@/public/images/default_pic.jpg"
 import { useSocket } from "@/app/context/SocketContext"
 import ChatArea from "@/app/components/dashboard/chatarea/ChatArea"
@@ -20,33 +21,62 @@ export default function ChatsPage() {
     const [currentUser, setCurrentUser] = useState<User | null>(null)
     const [loading, setLoading] = useState(true)
     const { socket, connectSocket, disconnectSocket } = useSocket()
+    const [onlineUsers, setOnlineUsers] = useState<string[]>([])
     const router = useRouter()
     const scrollRef = useRef<HTMLDivElement | null>(null)
     const API = process.env.NEXT_PUBLIC_SERVER_URL
 
+    const handleSessionExpired = () => {
+        toast.error("Session expired. Please log in again.")
+        disconnectSocket()
+        localStorage.clear()
+        router.push("/login")
+    }
+
     useEffect(() => {
         const token = localStorage.getItem("token")
         const currentUsername = localStorage.getItem("username")
+
+
         if (!token || !currentUsername) {
-            router.push("/login")
+            handleSessionExpired()
             return
         }
-        setUsername(currentUsername)
 
+        setUsername(currentUsername)
         let activeSocket: any = null
 
         const setup = async () => {
             activeSocket = await connectSocket(token)
-            if (!activeSocket) return
+            if (!activeSocket) {
+                toast.error("Failed to connect to chat server. Please log in again.")
+                handleSessionExpired()
+                return
+            }
 
-            activeSocket.emit("authenticate", { token }, (res: any) => {
-                if (res.error) router.push("/login")
-                else setCurrentUser(res.user)
+            activeSocket.on("online_users", (online: string[]) => {
+                setOnlineUsers(online.filter(u => u !== currentUsername))
+                setUsers(prev => {
+                    const updated = [...prev]
+                    online.forEach(u => {
+                        if (u !== currentUsername && !updated.find(user => user.username === u)) {
+                            updated.push({ id: u, username: u, displayName: u })
+                        }
+                    })
+                    return updated
+                })
             })
+
+
+
+            setCurrentUser({ id: currentUsername, username: currentUsername, displayName: currentUsername })
 
             activeSocket.on("receive_message", (data: Message) => {
                 const partner = data.from === currentUsername ? data.to : data.from
-                const shaped: Message = { ...data, direction: data.from === currentUsername ? "outbound" : "inbound" }
+                const shaped: Message = {
+                    ...data,
+                    direction: data.from === currentUsername ? "outbound" : "inbound",
+                }
 
                 setThreads(prev => {
                     const idx = prev.findIndex(t => t.user === partner)
@@ -57,22 +87,27 @@ export default function ChatsPage() {
                 })
 
                 setUsers(u => {
-                    if (!u.find(user => user.username === partner)) return [...u, { id: partner, username: partner, displayName: partner }]
+                    if (!u.find(user => user.username === partner))
+                        return [...u, { id: partner, username: partner, displayName: partner }]
                     return u
                 })
+
+
             })
 
             fetch(`${API}/users`, { headers: { Authorization: `Bearer ${token}` } })
                 .then(res => res.json())
                 .then(data => {
-                    if (data.success) setUsers(data.users)
+                    if (data.success) {
+                        const filtered = data.users.filter((u: User) => u.username !== currentUsername)
+                        setUsers(filtered)
+                    } else handleSessionExpired()
                     setLoading(false)
                 })
-                .catch(() => setLoading(false))
+
         }
 
         setup()
-
         return () => {
             if (activeSocket) activeSocket.off("receive_message")
         }
@@ -81,7 +116,16 @@ export default function ChatsPage() {
     const handleMessage = (e: React.ChangeEvent<HTMLInputElement>) => setMessage(e.target.value)
 
     const sendMessage = () => {
-        if (!message || !selectedUser || !socket || !username) return
+        const token = localStorage.getItem("token")
+        if (!token) {
+            handleSessionExpired()
+            return
+        }
+
+        if (!message || !selectedUser || !socket || !username) {
+            toast("Please select a user and type a message before sending.")
+            return
+        }
 
         const newMsg: Message = { from: username, to: selectedUser, text: message, direction: "outbound" }
 
@@ -93,16 +137,21 @@ export default function ChatsPage() {
             return copy
         })
 
-
         setUsers(u => {
-            if (!u.find(user => user.username === selectedUser)) {
+            if (!u.find(user => user.username === selectedUser))
                 return [...u, { id: selectedUser, username: selectedUser, displayName: selectedUser }]
-            }
             return u
         })
 
-        socket.emit("send_message", { to: selectedUser, text: message }, (ack: any) => {
-            if (ack?.success) setMessage("")
+        socket.emit("send_message", { to: selectedUser, text: message, token }, (ack: any) => {
+            if (ack?.success) {
+                setMessage("")
+
+            } else if (ack?.error === "Unauthorized") {
+                handleSessionExpired()
+            } else {
+                toast.error("Failed to send message. Try again.")
+            }
         })
     }
 
@@ -115,11 +164,12 @@ export default function ChatsPage() {
                 if (data.success) {
                     const msgs: Message[] = data.messages.map((m: any) => ({
                         ...m,
-                        direction: m.from === username ? "outbound" : "inbound"
+                        direction: m.from === username ? "outbound" : "inbound",
                     }))
                     setThreads(prev => [{ user: selectedUser, messages: msgs }, ...prev])
-                }
+                } else if (data.error === "Unauthorized") handleSessionExpired()
             })
+            .catch(() => toast.error("Failed to load messages"))
     }, [selectedUser, username, threads])
 
     useEffect(() => {
@@ -130,15 +180,17 @@ export default function ChatsPage() {
         disconnectSocket()
         localStorage.clear()
         router.push("/login")
+        toast.success("Logged out")
     }
 
-    if (loading) return (
-        <div className="h-screen w-full bg-dashboard-bg relative">
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-dashboard-loadingText">
-                <Loader />
+    if (loading)
+        return (
+            <div className="h-screen w-full bg-dashboard-bg relative">
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-dashboard-loadingText">
+                    <Loader />
+                </div>
             </div>
-        </div>
-    )
+        )
 
     return (
         <div className="h-screen flex bg-dashboard-bg text-dashboard-text">
@@ -148,6 +200,7 @@ export default function ChatsPage() {
                 users={users}
                 handleLogout={handleLogout}
                 Image={Image}
+                onlineUsers={onlineUsers}
             />
 
             <ChatArea
@@ -161,6 +214,7 @@ export default function ChatsPage() {
                 scrollRef={scrollRef}
                 currentUser={currentUser}
                 Image={Image}
+                onlineUsers={onlineUsers}
             />
         </div>
     )

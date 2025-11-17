@@ -37,6 +37,9 @@ module.exports = {
           welcomeText: 'var(--dashboard-welcome-text-color)',
           welcomeHeading: 'var(--dashboard-welcome-heading-text-color)',
           welcomeBody: 'var( --dashboard-welcome-body-text-color)',
+          onlinedot: 'var(--dashboard-onlineuser-dot-color)',
+          offlinedot: 'var(--dashboard-offlineuser-dot-color)',
+          onlinetext: 'var(--dashboard-onlineuser-text-color)',
         },
 
         login: {

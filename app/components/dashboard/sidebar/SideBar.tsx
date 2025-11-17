@@ -9,11 +9,14 @@ type Props = {
     handleLogout: () => void
     Image: any
     users: User[]
+    onlineUsers: string[]
 }
 
-const Sidebar = ({ selectedUser, setSelectedUser, handleLogout, Image, users }: Props) => {
+const Sidebar = ({ onlineUsers, selectedUser, setSelectedUser, handleLogout, Image, users }: Props) => {
     const [visibleUsers, setVisibleUsers] = useState<User[]>([])
-    const [search, setSearch] = useState("")
+    const [search, setSearch] = useState<string>("")
+
+
 
     useEffect(() => {
         const token = localStorage.getItem("token")
@@ -59,19 +62,26 @@ const Sidebar = ({ selectedUser, setSelectedUser, handleLogout, Image, users }: 
             </div>
 
             <div className="flex-1 overflow-y-auto">
-                {visibleUsers.map(user => (
-                    <div
-                        key={user.id}
-                        onClick={() => setSelectedUser(user.username)}
-                        className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-dashboard-userbgHover ${selectedUser === user.username ? "bg-dashboard-userBg" : ""}`}
-                    >
-                        <img src={Image.src} alt={user.displayName} className="w-10 h-10 rounded-full" />
-                        <div>
-                            <div className="font-medium">{user.displayName}</div>
-                            <div className="text-sm text-dashboard-userTagline">@{user.username}</div>
+                {visibleUsers.map(user => {
+                    const isOnline = onlineUsers.includes(user.username);
+                    return (
+                        <div
+                            key={user.id}
+                            onClick={() => setSelectedUser(user.username)}
+                            className={`flex items-center gap-3 px-4 py-3 cursor-pointer  hover:bg-dashboard-userbgHover ${selectedUser === user.username ? "bg-dashboard-userBg" : ""}`}
+                        >
+                            <div className="relative">
+
+                                <img src={Image.src} alt={user.displayName} className="w-10 h-10 rounded-full" />
+                                <div className={`h-3 w-3  rounded-[50%] absolute right-0 bottom-0 ${isOnline ? "bg-dashboard-onlinedot" : "bg-dashboard-offlinedot"}`}></div>
+                            </div>
+                            <div>
+                                <div className="font-medium">{user.displayName}</div>
+                                <div className="text-sm text-dashboard-userTagline">@{user.username}</div>
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    )
+                })}
                 {visibleUsers.length === 0 && <p className="text-center text-sm text-dashboard-userTagline mt-6">No users found</p>}
             </div>
         </div>

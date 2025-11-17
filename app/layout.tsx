@@ -1,7 +1,7 @@
 import "./globals.css";
 import React from "react";
 import { SocketProvider } from "@/app/context/SocketContext";
-
+import { Toaster } from "react-hot-toast"
 export const metadata = {
   title: "WhatsChat",
   description: "A user friendly chatting app with JWT authentication.",
@@ -19,6 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <SocketProvider>
+          <Toaster position="top-center" />
           {children}
         </SocketProvider>
       </body>

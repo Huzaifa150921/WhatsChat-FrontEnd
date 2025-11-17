@@ -34,6 +34,9 @@
     --dashboard-welcome-text-color: rgb(182, 182, 182);
     --dashboard-welcome-heading-text-color: white;
     --dashboard-welcome-body-text-color: rgb(175, 175, 175);
+    --dashboard-onlineuser-dot-color: rgb(10, 173, 10);
+    --dashboard-offlineuser-dot-color: gray;
+    --dashboard-onlineuser-text-color: grey;
 
 
     /* login  */

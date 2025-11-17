@@ -1,9 +1,12 @@
 "use client"
-import React from "react"
+
 
 type User = { id: string; username: string; displayName: string }
 type Message = { from: string; to: string; text: string; direction?: "inbound" | "outbound" }
 type Thread = { user: string; messages: Message[] }
+import { IoCheckmarkOutline } from "react-icons/io5";
+import { FaCheckDouble } from "react-icons/fa";
+
 
 type Props = {
     selectedUser: string | null
@@ -16,6 +19,7 @@ type Props = {
     scrollRef: React.RefObject<HTMLDivElement | null>
     currentUser: User | null
     Image: any
+    onlineUsers: string[]
 }
 
 const ChatArea = ({
@@ -28,27 +32,50 @@ const ChatArea = ({
     sendMessage,
     scrollRef,
     currentUser,
-    Image
+    Image,
+    onlineUsers
 }: Props) => {
-    const messages = threads.find(t => t.user === selectedUser)?.messages || []
+    const messages = threads.find(t => t.user === selectedUser)?.messages || [];
+
 
     return (
         <div className={`${selectedUser ? "flex" : "hidden sm:flex"} flex-col flex-1 bg-dashboard-selecteduserBg`}>
             {selectedUser ? (
+
                 <>
+
                     <div className="p-4 border-b border-dashboard-selecteduserBorder flex items-center gap-3">
                         <button onClick={() => setSelectedUser(null)} className="sm:hidden text-xl">←</button>
+
                         <img src={Image.src} alt={users.find(u => u.username === selectedUser)?.displayName || "Guest"} className="w-10 h-10 rounded-full" />
-                        <h2 className="font-semibold">{users.find(u => u.username === selectedUser)?.displayName || selectedUser}</h2>
+
+                        <div className="flex flex-col items-start justify-start">
+                            <h2 className="font-semibold m-0 leading-tight">{users.find(u => u.username === selectedUser)?.displayName || selectedUser}</h2>
+                            <p className="text-sm text-dashboard-onlinetext m-0 ">{onlineUsers.includes(selectedUser) ? "Online" : "Offline"}</p>
+                        </div>
                     </div>
+
 
                     <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
                         {messages.map((msg, i) => (
-                            <div
-                                key={i}
-                                className={`max-w-xs md:max-w-sm p-3 rounded-lg ${msg.direction === "outbound" ? "bg-dashboard-senderBg ml-auto" : "bg-dashboard-reciverBg mr-auto"}`}
-                            >
-                                {msg.text}
+                            <div className="relative" key={i}>
+
+                                <div
+
+                                    className={`max-w-xs md:max-w-sm p-3 rounded-lg ${msg.direction === "outbound" ? "bg-dashboard-senderBg ml-auto" : "bg-dashboard-reciverBg mr-auto"}`}
+                                >
+                                    {msg.text}
+                                </div>
+                                {
+                                    msg.direction === "outbound" ?
+
+                                        onlineUsers.includes(selectedUser) ?
+
+                                            <FaCheckDouble className="absolute right-2 bottom-1" /> :
+                                            <IoCheckmarkOutline className="absolute right-2 bottom-1" />
+                                        : null
+
+                                }
                             </div>
                         ))}
                     </div>
